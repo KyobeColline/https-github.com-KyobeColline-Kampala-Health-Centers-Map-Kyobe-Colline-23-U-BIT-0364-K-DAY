@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Interactive map of health centers in Uganda with routing, reviews, and real-time opening hours">
+    <title>Uganda Health Centers Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet Marker Cluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="m-0 p-0 overflow-hidden">
+    <!-- Main Container -->
+    <div class="flex flex-col md:flex-row h-screen w-screen">
+        <!-- Sidebar (Desktop) / Hidden on Mobile -->
+        <aside id="sidebar" class="hidden md:flex flex-col w-80 bg-white shadow-xl z-10 border-r" style="border-color: #e2e8f0;">
+            <!-- Header -->
+            <div class="p-5 text-white" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                <h1 class="text-2xl font-bold mb-1">🏥 Health Centers</h1>
+                <p class="text-sm opacity-90">Uganda</p>
+            </div>
+            
+            <!-- Search Section -->
+            <div class="p-4 border-b" style="border-color: #e2e8f0; background: #f8fafc;">
+                <div class="relative mb-3">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Search health centers..."
+                        class="w-full px-4 py-2.5 pl-10 border rounded-lg focus:outline-none focus:ring-2 transition-all"
+                        style="border-color: #cbd5e1; focus:ring-color: #0d9488;"
+                        aria-label="Search health centers"
+                    >
+                    <svg class="absolute left-3 top-3 w-5 h-5" style="color: #94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <button 
+                        id="clearSearch" 
+                        class="absolute right-3 top-3 hidden transition-colors"
+                        style="color: #94a3b8;"
+                        onmouseover="this.style.color='#475569'"
+                        onmouseout="this.style.color='#94a3b8'"
+                        aria-label="Clear search"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Type Filter -->
+                <select 
+                    id="typeFilter" 
+                    class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-all"
+                    style="border-color: #cbd5e1; focus:ring-color: #0d9488;"
+                    aria-label="Filter by health center type"
+                >
+                    <option value="all">All Types</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Clinic">Clinic</option>
+                    <option value="Health Center">Health Center</option>
+                    <option value="Dispensary">Dispensary</option>
+                </select>
+            </div>
+            
+            <!-- Health Centers List -->
+            <div id="healthCentersList" class="flex-1 overflow-y-auto p-2">
+                <!-- List items will be populated by JavaScript -->
+            </div>
+            
+            <!-- Footer -->
+            <div class="p-4 border-t text-xs text-center" style="border-color: #e2e8f0; color: #64748b; background: #f8fafc;">
+                <p>Data from OpenStreetMap</p>
+                <p class="mt-1">© 2024 Health Centers Map</p>
+            </div>
+        </aside>
+        
+        <!-- Mobile Menu Button -->
+        <button 
+            id="mobileMenuBtn" 
+            class="md:hidden fixed top-4 left-4 z-20 p-3 rounded-xl shadow-xl transition-all hover:shadow-2xl"
+            style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);"
+            aria-label="Toggle menu"
+        >
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+        
+        <!-- Mobile Sidebar (Overlay) -->
+        <div id="mobileSidebar" class="md:hidden fixed inset-0 z-30 hidden" style="background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px);">
+            <div class="absolute left-0 top-0 bottom-0 w-80 bg-white shadow-2xl overflow-y-auto">
+                <div class="p-5 text-white flex justify-between items-center" style="background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);">
+                    <div>
+                        <h1 class="text-2xl font-bold mb-1">🏥 Health Centers</h1>
+                        <p class="text-sm opacity-90">Uganda</p>
+                    </div>
+                    <button id="closeMobileMenu" class="text-white opacity-90 hover:opacity-100 transition-opacity">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-4 border-b" style="border-color: #e2e8f0; background: #f8fafc;">
+                    <div class="relative mb-3">
+                        <input 
+                            type="text" 
+                            id="mobileSearchInput" 
+                            placeholder="Search health centers..."
+                            class="w-full px-4 py-2.5 pl-10 border rounded-lg focus:outline-none focus:ring-2 transition-all"
+                            style="border-color: #cbd5e1;"
+                        >
+                        <svg class="absolute left-3 top-3 w-5 h-5" style="color: #94a3b8;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <select 
+                        id="mobileTypeFilter" 
+                        class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition-all"
+                        style="border-color: #cbd5e1;"
+                    >
+                        <option value="all">All Types</option>
+                        <option value="Hospital">Hospital</option>
+                        <option value="Clinic">Clinic</option>
+                        <option value="Health Center">Health Center</option>
+                        <option value="Dispensary">Dispensary</option>
+                    </select>
+                </div>
+                <div id="mobileHealthCentersList" class="p-2">
+                    <!-- List items will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map Container -->
+        <div id="map" class="flex-1 w-full h-full relative">
+            <!-- Loading Overlay -->
+            <div id="loadingOverlay" class="absolute inset-0 z-50 flex items-center justify-center" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(4px);">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-14 w-14 border-4 border-t-transparent mx-auto mb-4" style="border-color: #0d9488;"></div>
+                    <p style="color: #475569; font-weight: 500;">Loading map...</p>
+                </div>
+            </div>
+            
+            <!-- Locate Me Button -->
+            <button 
+                id="locateBtn" 
+                class="fixed bottom-4 right-4 z-20 p-4 rounded-full shadow-xl transition-all hover:shadow-2xl hover:scale-110"
+                type="button"
+                aria-label="Locate me"
+                title="Locate me"
+            >
+                <span class="locate-icon">
+                    <svg fill="none" viewBox="0 0 24 24">
+                        <path d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </span>
+            </button>
+            
+            <!-- Route Info Panel -->
+            <div id="routeInfoPanel" class="hidden fixed bottom-4 left-4 md:left-4 z-20 p-5 rounded-xl shadow-2xl max-w-sm" style="background: white; border: 1px solid #e2e8f0;">
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="font-bold text-lg" style="color: #0f172a;">Route Information</h3>
+                    <button id="closeRouteInfo" class="transition-colors" style="color: #94a3b8;" onmouseover="this.style.color='#475569'" onmouseout="this.style.color='#94a3b8'">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="routeDetails" class="space-y-2 text-sm" style="color: #475569;">
+                    <!-- Route details will be populated by JavaScript -->
+                </div>
+                <button 
+                    id="clearRouteBtn" 
+                    class="mt-4 w-full text-white py-2.5 px-4 rounded-lg transition-all hover:shadow-lg font-medium"
+                    style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);"
+                >
+                    Clear Route
+                </button>
+            </div>
+            
+            <!-- Directions Panel -->
+            <div id="directionsPanel" class="hidden fixed bottom-0 left-0 right-0 md:left-80 md:right-0 z-20 max-h-64 overflow-y-auto" style="background: white; border-top: 1px solid #e2e8f0; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div class="p-5">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg" style="color: #0f172a;">Turn-by-Turn Directions</h3>
+                        <button id="closeDirections" class="transition-colors" style="color: #94a3b8;" onmouseover="this.style.color='#475569'" onmouseout="this.style.color='#94a3b8'">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="directionsList" class="space-y-2">
+                        <!-- Directions will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Marker Cluster -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <!-- Health Centers Data (embedded to avoid CORS) -->
+    <script src="data/health-centers-data.js"></script>
+    
+    <!-- Application JS -->
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/popup.js"></script>
+    <script src="js/routing.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/map.js"></script>
+</body>
+</html>
+
